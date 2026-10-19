@@ -46,18 +46,8 @@ st.set_page_config(
 
 st.title("Calculadora financiera")
 
-# Creamos la lista de opciones cambiando "Anual" por "Efectiva anual" solo para la vista
-OPCIONES_PERIODICIDAD = [
-    "Efectiva anual" if clave == "Anual" else clave
-    for clave in PERIODOS_ANUALES.keys()
-]
-
-
-def limpiar_periodicidad(periodicidad_str):
-    """Mapea 'Efectiva anual' de vuelta a 'Anual' para el backend."""
-    if periodicidad_str == "Efectiva anual":
-        return "Anual"
-    return periodicidad_str
+# Usamos directamente las claves del backend (incluye 'Anual')
+OPCIONES_PERIODICIDAD = list(PERIODOS_ANUALES.keys())
 
 
 # ---------------------------------------------------------
@@ -66,10 +56,7 @@ def limpiar_periodicidad(periodicidad_str):
 
 
 def ingresar_tasa(key):
-    """Permite ingresar una tasa efectiva anual o nominal.
-
-    Si es nominal, solicita su periodicidad de capitalización y su modalidad.
-    """
+    """Permite ingresar una tasa efectiva anual, nominal o indexada."""
 
     es_indexada = (
             st.radio(
@@ -94,13 +81,12 @@ def ingresar_tasa(key):
             "Segundo componente (%)", min_value=0.0, value=0.0, step=0.1, key=f"{key}_tasa2"
         )
 
-        periodicidad_raw = st.selectbox(
+        periodicidad = st.selectbox(
             "Periodicidad de los componentes",
             OPCIONES_PERIODICIDAD,
-            index=1,
+            index=OPCIONES_PERIODICIDAD.index("Mensual") if "Mensual" in OPCIONES_PERIODICIDAD else 0,
             key=f"{key}_periodicidad_indexada",
         )
-        periodicidad = limpiar_periodicidad(periodicidad_raw)
 
         return {
             "es_indexada": True,
@@ -127,13 +113,12 @@ def ingresar_tasa(key):
         st.caption("La tasa efectiva se interpreta como efectiva anual.")
 
     else:
-        periodicidad_raw = st.selectbox(
+        periodicidad_tasa = st.selectbox(
             "Periodicidad de capitalización de la tasa nominal",
             OPCIONES_PERIODICIDAD,
-            index=1,
+            index=OPCIONES_PERIODICIDAD.index("Mensual") if "Mensual" in OPCIONES_PERIODICIDAD else 0,
             key=f"{key}_periodicidad_tasa",
         )
-        periodicidad_tasa = limpiar_periodicidad(periodicidad_raw)
 
         modalidad = st.selectbox(
             "Modalidad de la tasa nominal",
@@ -185,13 +170,12 @@ def ingresar_tiempo(key):
         "Número de períodos", min_value=0.0, value=1.0, step=1.0, key=f"{key}_n"
     )
 
-    periodicidad_raw = st.selectbox(
+    periodicidad = st.selectbox(
         "Periodicidad del tiempo",
         OPCIONES_PERIODICIDAD,
-        index=1,
+        index=OPCIONES_PERIODICIDAD.index("Mensual") if "Mensual" in OPCIONES_PERIODICIDAD else 0,
         key=f"{key}_periodicidad",
     )
-    periodicidad = limpiar_periodicidad(periodicidad_raw)
 
     return n, periodicidad
 
@@ -253,13 +237,12 @@ with tab_interes:
 
             n, periodicidad_tiempo = ingresar_tiempo("futuro")
 
-            periodicidad_resultado_raw = st.selectbox(
+            periodicidad_resultado = st.selectbox(
                 "Periodicidad para el cálculo",
                 OPCIONES_PERIODICIDAD,
-                index=1,
+                index=OPCIONES_PERIODICIDAD.index("Mensual") if "Mensual" in OPCIONES_PERIODICIDAD else 0,
                 key="futuro_periodicidad_resultado",
             )
-            periodicidad_resultado = limpiar_periodicidad(periodicidad_resultado_raw)
 
             if st.button("Calcular valor futuro", key="btn_futuro"):
 
@@ -295,13 +278,12 @@ with tab_interes:
 
             n, periodicidad_tiempo = ingresar_tiempo("presente")
 
-            periodicidad_resultado_raw = st.selectbox(
+            periodicidad_resultado = st.selectbox(
                 "Periodicidad para el cálculo",
                 OPCIONES_PERIODICIDAD,
-                index=1,
+                index=OPCIONES_PERIODICIDAD.index("Mensual") if "Mensual" in OPCIONES_PERIODICIDAD else 0,
                 key="presente_periodicidad_resultado",
             )
-            periodicidad_resultado = limpiar_periodicidad(periodicidad_resultado_raw)
 
             if st.button("Calcular valor presente", key="btn_presente"):
 
@@ -343,13 +325,12 @@ with tab_interes:
 
             n, periodicidad_tiempo = ingresar_tiempo("interes")
 
-            periodicidad_resultado_raw = st.selectbox(
+            periodicidad_resultado = st.selectbox(
                 "Periodicidad de la tasa que deseas obtener",
                 OPCIONES_PERIODICIDAD,
-                index=1,
+                index=OPCIONES_PERIODICIDAD.index("Mensual") if "Mensual" in OPCIONES_PERIODICIDAD else 0,
                 key="interes_periodicidad_resultado",
             )
-            periodicidad_resultado = limpiar_periodicidad(periodicidad_resultado_raw)
 
             if st.button("Calcular tasa", key="btn_interes"):
 
@@ -391,13 +372,12 @@ with tab_interes:
                 key="periodos_F",
             )
 
-            periodicidad_resultado_raw = st.selectbox(
+            periodicidad_resultado = st.selectbox(
                 "Periodicidad en la que deseas obtener los períodos",
                 OPCIONES_PERIODICIDAD,
-                index=1,
+                index=OPCIONES_PERIODICIDAD.index("Mensual") if "Mensual" in OPCIONES_PERIODICIDAD else 0,
                 key="periodos_periodicidad_resultado",
             )
-            periodicidad_resultado = limpiar_periodicidad(periodicidad_resultado_raw)
 
             if st.button("Calcular períodos", key="btn_periodos"):
 
@@ -448,13 +428,12 @@ with tab_conversiones:
 
             datos_tasa_conversion = ingresar_tasa("conversion")
 
-            periodicidad_resultado_raw = st.selectbox(
+            periodicidad_resultado = st.selectbox(
                 "Periodicidad de la tasa de resultado",
                 OPCIONES_PERIODICIDAD,
-                index=1,
+                index=OPCIONES_PERIODICIDAD.index("Mensual") if "Mensual" in OPCIONES_PERIODICIDAD else 0,
                 key="conversion_periodicidad_resultado",
             )
-            periodicidad_resultado = limpiar_periodicidad(periodicidad_resultado_raw)
 
             if st.button("Convertir tasa", key="btn_conversion_tasa"):
 
@@ -470,13 +449,12 @@ with tab_conversiones:
 
             n, periodicidad_tiempo = ingresar_tiempo("conversion_tiempo")
 
-            periodicidad_resultado_raw = st.selectbox(
+            periodicidad_resultado = st.selectbox(
                 "Periodicidad de resultado",
                 OPCIONES_PERIODICIDAD,
-                index=2,
+                index=OPCIONES_PERIODICIDAD.index("Mensual") if "Mensual" in OPCIONES_PERIODICIDAD else 0,
                 key="conversion_tiempo_resultado",
             )
-            periodicidad_resultado = limpiar_periodicidad(periodicidad_resultado_raw)
 
             if st.button("Convertir tiempo", key="btn_conversion_tiempo"):
 
