@@ -1,4 +1,3 @@
-
 # ---------------------------------------------------------
 # VALIDACIONES/Validacion_interes_compuesto.py
 # ---------------------------------------------------------
@@ -7,6 +6,9 @@ from Utilidades.ValidacionError import ValidacionError
 
 
 def validar_valor_futuro(P, i, n):
+    if P is None or i is None or n is None:
+        raise ValidacionError("Todos los campos numéricos son obligatorios.")
+
     if P <= 0:
         raise ValidacionError(
             "El valor presente (P) debe ser un número positivo."
@@ -24,6 +26,9 @@ def validar_valor_futuro(P, i, n):
 
 
 def validar_valor_presente(F, i, n):
+    if F is None or i is None or n is None:
+        raise ValidacionError("Todos los campos numéricos son obligatorios.")
+
     if F <= 0:
         raise ValidacionError(
             "El valor futuro (F) debe ser un número positivo."
@@ -41,6 +46,9 @@ def validar_valor_presente(F, i, n):
 
 
 def validar_valor_interes(F, P, n):
+    if F is None or P is None or n is None:
+        raise ValidacionError("Todos los campos numéricos son obligatorios.")
+
     if P <= 0:
         raise ValidacionError(
             "El valor presente (P) debe ser un número positivo."
@@ -63,6 +71,9 @@ def validar_valor_interes(F, P, n):
 
 
 def validar_valor_periodo(F, P, i):
+    if F is None or P is None or i is None:
+        raise ValidacionError("Todos los campos numéricos son obligatorios.")
+
     if P <= 0:
         raise ValidacionError(
             "El valor presente (P) debe ser un número positivo."

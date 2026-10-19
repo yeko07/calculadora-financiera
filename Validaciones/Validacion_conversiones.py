@@ -1,4 +1,3 @@
-
 # ---------------------------------------------------------
 # VALIDACIONES/Validacion_conversiones.py
 # ---------------------------------------------------------
@@ -8,31 +7,31 @@ from Modulos.Conversiones import PERIODOS_ANUALES
 
 
 def validar_periodicidad(periodicidad):
-    if periodicidad not in PERIODOS_ANUALES:
+    if periodicidad is None or periodicidad not in PERIODOS_ANUALES:
         raise ValidacionError(
             f"La periodicidad '{periodicidad}' no es válida."
         )
 
 
 def validar_frecuencia(m):
-    if m <= 0:
+    if m is None or m <= 0:
         raise ValidacionError(
             "La frecuencia de capitalización debe ser mayor que cero."
         )
 
 
 def validar_tasa_no_negativa(tasa):
-    if tasa < 0:
+    if tasa is None or tasa < 0:
         raise ValidacionError("La tasa de interés no puede ser negativa.")
 
 
 def validar_tasa_mayor_menos_100(tasa):
-    if tasa <= -100:
+    if tasa is None or tasa <= -100:
         raise ValidacionError("La tasa debe ser mayor que -100 %.")
 
 
 # ---------------------------------------------------------
-# TASA PERIODICA Y NOMINAL
+# TASA PERIÓDICA Y NOMINAL
 # ---------------------------------------------------------
 
 def validar_periodica_nominal(i_p, m):
@@ -60,7 +59,7 @@ def validar_efectiva_nominal(i_ea, m):
 
 
 # ---------------------------------------------------------
-# TASA EFECTIVA ANUAL Y PERIODICA
+# TASA EFECTIVA ANUAL Y PERIÓDICA
 # ---------------------------------------------------------
 
 def validar_efectiva_periodica(i_ea, m):
@@ -78,7 +77,7 @@ def validar_periodica_efectiva(i_p, m):
 # ---------------------------------------------------------
 
 def validar_anticipada_vencida(i_a):
-    if i_a < 0 or i_a >= 100:
+    if i_a is None or i_a < 0 or i_a >= 100:
         raise ValidacionError(
             "La tasa periódica anticipada debe ser mayor o igual "
             "a 0 % y menor que 100 %."
@@ -104,6 +103,9 @@ def validar_ipc_uvr(i1, i2):
 
 
 def validar_tasa_indexada(tipo_indexado, i1, i2):
+    if tipo_indexado is None:
+        raise ValidacionError("Debes seleccionar un tipo de tasa indexada válido.")
+
     if tipo_indexado == "IBR + DTF":
         validar_dtf_ibr(i1, i2)
 
@@ -130,6 +132,9 @@ def validar_procesar_tasa(
         tipo_indexado="",
         tasa2=0.0
 ):
+    if tasa is None or tipo_tasa is None or modalidad is None:
+        raise ValidacionError("Todos los campos de la tasa son obligatorios.")
+
     validar_periodicidad(periodicidad_tasa)
     validar_periodicidad(periodicidad_resultado)
 
@@ -174,9 +179,9 @@ def validar_convertir_tiempo(
         periodicidad_tiempo,
         periodicidad_resultado
 ):
-    if n < 0:
+    if n is None or n < 0:
         raise ValidacionError(
-            "El número de períodos no puede ser negativo."
+            "El número de períodos no puede ser negativo o nulo."
         )
 
     validar_periodicidad(periodicidad_tiempo)
