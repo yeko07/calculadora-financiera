@@ -21,6 +21,22 @@ from Modulos.Conversiones import (
     vencida_anticipada,
 )
 
+from Modulos.Anualidades import (
+    valor_presente_anualidad_vencida,
+    valor_anualidad_con_presente_vencida,
+    valor_tiempo_anualidad_vencida_con_presente,
+    valor_futuro_anualidad_vencida,
+    valor_anualidad_con_futuro_vencida,
+    valor_tiempo_anualidad_vencida_con_futuro,
+    valor_presente_anualidad_anticipada,
+    valor_anualidad_con_presente_anticipada,
+    valor_tiempo_anualidad_anticipada_con_presente,
+    valor_futuro_anualidad_anticipada,
+    valor_anualidad_con_futuro_anticipada,
+    valor_tiempo_anualidad_anticipada_con_futuro,
+    anualidad_perpetua,
+)
+
 from Validaciones.Validacion_interes_compuesto import (
     validar_valor_futuro,
     validar_valor_presente,
@@ -33,6 +49,14 @@ from Validaciones.Validacion_conversiones import (
     validar_convertir_tiempo,
     validar_anticipada_vencida,
     validar_vencida_anticipada,
+)
+
+from Validaciones.Validacion_anualidades import (
+    validar_tasa_y_periodos,
+    validar_tasa,
+    validar_calculo_tiempo_presente_vencida,
+    validar_calculo_tiempo_presente_anticipada,
+    validar_calculo_tiempo_futuro,
 )
 
 
@@ -70,7 +94,7 @@ def ingresar_tasa(key):
 
     if es_indexada:
         tipo_indexado = st.selectbox(
-            "Tipo de tasa indexada", ["IBR + DTF", "IPC + UVR"], key=f"{key}_tipo_indexado"
+            "Tipo de tasa indexada", ["IBR o DTF", "IPC o UVR"], key=f"{key}_tipo_indexado"
         )
 
         tasa1 = st.number_input(
@@ -198,7 +222,9 @@ def mostrar_error(error):
 # PESTAÑAS
 # ---------------------------------------------------------
 
-tab_interes, tab_conversiones = st.tabs(["Interés compuesto", "Conversiones"])
+tab_interes, tab_conversiones, tab_anualidades = st.tabs(
+    ["Interés compuesto", "Conversiones", "Anualidades"]
+)
 
 
 # =========================================================
@@ -508,6 +534,250 @@ with tab_conversiones:
                     resultado = vencida_anticipada(tasa_periodica)
 
                     st.success(f"Tasa periódica anticipada: {resultado:.6f} %")
+
+    except (
+            ValidacionError,
+            ValueError,
+            ZeroDivisionError,
+            OverflowError,
+    ) as error:
+        mostrar_error(error)
+
+
+# =========================================================
+# PESTAÑA 3: ANUALIDADES
+# =========================================================
+
+with tab_anualidades:
+
+    st.header("Cálculos de anualidades")
+
+    sub_anualidad = st.selectbox(
+        "Selecciona el tipo de anualidad",
+        [
+            "Anualidades Vencidas",
+            "Anualidades Anticipadas",
+            "Anualidades Perpetuas",
+        ],
+        key="sub_anualidad",
+    )
+
+    st.divider()
+
+    try:
+
+        # -------------------------------------------------
+        # ANUALIDADES VENCIDAS
+        # -------------------------------------------------
+        if sub_anualidad == "Anualidades Vencidas":
+            operacion_vencida = st.selectbox(
+                "Selecciona la operación (Vencidas)",
+                [
+                    "Valor Presente (P)",
+                    "Anualidad (A) desde Presente",
+                    "Tiempo (n) desde Presente",
+                    "Valor Futuro (F)",
+                    "Anualidad (A) desde Futuro",
+                    "Tiempo (n) desde Futuro",
+                ],
+                key="op_vencida",
+            )
+
+            if operacion_vencida == "Valor Presente (P)":
+                A = st.number_input("Valor de la anualidad (A)", value=1000.0, step=100.0, key="v_p_A")
+                datos_tasa = ingresar_tasa("v_p_tasa")
+                n, periodicidad_tiempo = ingresar_tiempo("v_p_n")
+                periodicidad_res = st.selectbox("Periodicidad de cálculo", OPCIONES_PERIODICIDAD, key="v_p_per")
+
+                if st.button("Calcular Valor Presente", key="btn_v_p"):
+                    tasa_calc = calcular_tasa_resultado(datos_tasa, periodicidad_res)
+                    n_calc = calcular_tiempo_resultado(n, periodicidad_tiempo, periodicidad_res)
+                    validar_tasa_y_periodos(tasa_calc, int(n_calc))
+
+                    resultado = valor_presente_anualidad_vencida(A, tasa_calc, int(n_calc))
+                    st.success(f"Valor Presente (P): ${resultado:,.2f}")
+
+            elif operacion_vencida == "Anualidad (A) desde Presente":
+                P = st.number_input("Valor Presente (P)", value=10000.0, step=1000.0, key="v_a_p_P")
+                datos_tasa = ingresar_tasa("v_a_p_tasa")
+                n, periodicidad_tiempo = ingresar_tiempo("v_a_p_n")
+                periodicidad_res = st.selectbox("Periodicidad de cálculo", OPCIONES_PERIODICIDAD, key="v_a_p_per")
+
+                if st.button("Calcular Anualidad (A)", key="btn_v_a_p"):
+                    tasa_calc = calcular_tasa_resultado(datos_tasa, periodicidad_res)
+                    n_calc = calcular_tiempo_resultado(n, periodicidad_tiempo, periodicidad_res)
+                    validar_tasa_y_periodos(tasa_calc, int(n_calc))
+
+                    resultado = valor_anualidad_con_presente_vencida(P, tasa_calc, int(n_calc))
+                    st.success(f"Anualidad (A): ${resultado:,.2f}")
+
+            elif operacion_vencida == "Tiempo (n) desde Presente":
+                P = st.number_input("Valor Presente (P)", value=10000.0, step=1000.0, key="t_p_P")
+                A = st.number_input("Valor de la anualidad (A)", value=1000.0, step=100.0, key="t_p_A")
+                datos_tasa = ingresar_tasa("t_p_tasa")
+                periodicidad_res = st.selectbox("Periodicidad de cálculo", OPCIONES_PERIODICIDAD, key="t_p_per")
+
+                if st.button("Calcular Tiempo (n)", key="btn_t_p"):
+                    tasa_calc = calcular_tasa_resultado(datos_tasa, periodicidad_res)
+                    validar_calculo_tiempo_presente_vencida(P, tasa_calc, A)
+
+                    resultado = valor_tiempo_anualidad_vencida_con_presente(P, tasa_calc, A)
+                    st.success(f"Número de períodos (n): {resultado:.4f}")
+
+            elif operacion_vencida == "Valor Futuro (F)":
+                A = st.number_input("Valor de la anualidad (A)", value=1000.0, step=100.0, key="v_f_A")
+                datos_tasa = ingresar_tasa("v_f_tasa")
+                n, periodicidad_tiempo = ingresar_tiempo("v_f_n")
+                periodicidad_res = st.selectbox("Periodicidad de cálculo", OPCIONES_PERIODICIDAD, key="v_f_per")
+
+                if st.button("Calcular Valor Futuro", key="btn_v_f"):
+                    tasa_calc = calcular_tasa_resultado(datos_tasa, periodicidad_res)
+                    n_calc = calcular_tiempo_resultado(n, periodicidad_tiempo, periodicidad_res)
+                    validar_tasa_y_periodos(tasa_calc, int(n_calc))
+
+                    resultado = valor_futuro_anualidad_vencida(A, tasa_calc, int(n_calc))
+                    st.success(f"Valor Futuro (F): ${resultado:,.2f}")
+
+            elif operacion_vencida == "Anualidad (A) desde Futuro":
+                F = st.number_input("Valor Futuro (F)", value=15000.0, step=1000.0, key="v_a_f_F")
+                datos_tasa = ingresar_tasa("v_a_f_tasa")
+                n, periodicidad_tiempo = ingresar_tiempo("v_a_f_n")
+                periodicidad_res = st.selectbox("Periodicidad de cálculo", OPCIONES_PERIODICIDAD, key="v_a_f_per")
+
+                if st.button("Calcular Anualidad (A)", key="btn_v_a_f"):
+                    tasa_calc = calcular_tasa_resultado(datos_tasa, periodicidad_res)
+                    n_calc = calcular_tiempo_resultado(n, periodicidad_tiempo, periodicidad_res)
+                    validar_tasa_y_periodos(tasa_calc, int(n_calc))
+
+                    resultado = valor_anualidad_con_futuro_vencida(F, tasa_calc, int(n_calc))
+                    st.success(f"Anualidad (A): ${resultado:,.2f}")
+
+            elif operacion_vencida == "Tiempo (n) desde Futuro":
+                F = st.number_input("Valor Futuro (F)", value=15000.0, step=1000.0, key="t_f_F")
+                A = st.number_input("Valor de la anualidad (A)", value=1000.0, step=100.0, key="t_f_A")
+                datos_tasa = ingresar_tasa("t_f_tasa")
+                periodicidad_res = st.selectbox("Periodicidad de cálculo", OPCIONES_PERIODICIDAD, key="t_f_per")
+
+                if st.button("Calcular Tiempo (n)", key="btn_t_f"):
+                    tasa_calc = calcular_tasa_resultado(datos_tasa, periodicidad_res)
+                    validar_calculo_tiempo_futuro(A, tasa_calc)
+
+                    resultado = valor_tiempo_anualidad_vencida_con_futuro(F, tasa_calc, A)
+                    st.success(f"Número de períodos (n): {resultado:.4f}")
+
+        # -------------------------------------------------
+        # ANUALIDADES ANTICIPADAS
+        # -------------------------------------------------
+        elif sub_anualidad == "Anualidades Anticipadas":
+            operacion_anticipada = st.selectbox(
+                "Selecciona la operación (Anticipadas)",
+                [
+                    "Valor Presente (P)",
+                    "Anualidad (A) desde Presente",
+                    "Tiempo (n) desde Presente",
+                    "Valor Futuro (F)",
+                    "Anualidad (A) desde Futuro",
+                    "Tiempo (n) desde Futuro",
+                ],
+                key="op_anticipada",
+            )
+
+            if operacion_anticipada == "Valor Presente (P)":
+                A = st.number_input("Valor de la anualidad (A)", value=1000.0, step=100.0, key="ant_p_A")
+                datos_tasa = ingresar_tasa("ant_p_tasa")
+                n, periodicidad_tiempo = ingresar_tiempo("ant_p_n")
+                periodicidad_res = st.selectbox("Periodicidad de cálculo", OPCIONES_PERIODICIDAD, key="ant_p_per")
+
+                if st.button("Calcular Valor Presente Anticipado", key="btn_ant_p"):
+                    tasa_calc = calcular_tasa_resultado(datos_tasa, periodicidad_res)
+                    n_calc = calcular_tiempo_resultado(n, periodicidad_tiempo, periodicidad_res)
+                    validar_tasa_y_periodos(tasa_calc, int(n_calc))
+
+                    resultado = valor_presente_anualidad_anticipada(A, tasa_calc, int(n_calc))
+                    st.success(f"Valor Presente Anticipado (P): ${resultado:,.2f}")
+
+            elif operacion_anticipada == "Anualidad (A) desde Presente":
+                P = st.number_input("Valor Presente (P)", value=10000.0, step=1000.0, key="ant_ap_P")
+                datos_tasa = ingresar_tasa("ant_ap_tasa")
+                n, periodicidad_tiempo = ingresar_tiempo("ant_ap_n")
+                periodicidad_res = st.selectbox("Periodicidad de cálculo", OPCIONES_PERIODICIDAD, key="ant_ap_per")
+
+                if st.button("Calcular Anualidad Anticipada (A)", key="btn_ant_ap"):
+                    tasa_calc = calcular_tasa_resultado(datos_tasa, periodicidad_res)
+                    n_calc = calcular_tiempo_resultado(n, periodicidad_tiempo, periodicidad_res)
+                    validar_tasa_y_periodos(tasa_calc, int(n_calc))
+
+                    resultado = valor_anualidad_con_presente_anticipada(P, tasa_calc, int(n_calc))
+                    st.success(f"Anualidad Anticipada (A): ${resultado:,.2f}")
+
+            elif operacion_anticipada == "Tiempo (n) desde Presente":
+                P = st.number_input("Valor Presente (P)", value=10000.0, step=1000.0, key="ant_tp_P")
+                A = st.number_input("Valor de la anualidad (A)", value=1000.0, step=100.0, key="ant_tp_A")
+                datos_tasa = ingresar_tasa("ant_tp_tasa")
+                periodicidad_res = st.selectbox("Periodicidad de cálculo", OPCIONES_PERIODICIDAD, key="ant_tp_per")
+
+                if st.button("Calcular Tiempo (n) Anticipado", key="btn_ant_tp"):
+                    tasa_calc = calcular_tasa_resultado(datos_tasa, periodicidad_res)
+                    validar_calculo_tiempo_presente_anticipada(P, tasa_calc, A)
+
+                    resultado = valor_tiempo_anualidad_anticipada_con_presente(P, tasa_calc, A)
+                    st.success(f"Número de períodos (n): {resultado:.4f}")
+
+            elif operacion_anticipada == "Valor Futuro (F)":
+                A = st.number_input("Valor de la anualidad (A)", value=1000.0, step=100.0, key="ant_f_A")
+                datos_tasa = ingresar_tasa("ant_f_tasa")
+                n, periodicidad_tiempo = ingresar_tiempo("ant_f_n")
+                periodicidad_res = st.selectbox("Periodicidad de cálculo", OPCIONES_PERIODICIDAD, key="ant_f_per")
+
+                if st.button("Calcular Valor Futuro Anticipado", key="btn_ant_f"):
+                    tasa_calc = calcular_tasa_resultado(datos_tasa, periodicidad_res)
+                    n_calc = calcular_tiempo_resultado(n, periodicidad_tiempo, periodicidad_res)
+                    validar_tasa_y_periodos(tasa_calc, int(n_calc))
+
+                    resultado = valor_futuro_anualidad_anticipada(A, tasa_calc, int(n_calc))
+                    st.success(f"Valor Futuro Anticipado (F): ${resultado:,.2f}")
+
+            elif operacion_anticipada == "Anualidad (A) desde Futuro":
+                F = st.number_input("Valor Futuro (F)", value=15000.0, step=1000.0, key="ant_af_F")
+                datos_tasa = ingresar_tasa("ant_af_tasa")
+                n, periodicidad_tiempo = ingresar_tiempo("ant_af_n")
+                periodicidad_res = st.selectbox("Periodicidad de cálculo", OPCIONES_PERIODICIDAD, key="ant_af_per")
+
+                if st.button("Calcular Anualidad Anticipada (A)", key="btn_ant_af"):
+                    tasa_calc = calcular_tasa_resultado(datos_tasa, periodicidad_res)
+                    n_calc = calcular_tiempo_resultado(n, periodicidad_tiempo, periodicidad_res)
+                    validar_tasa_y_periodos(tasa_calc, int(n_calc))
+
+                    resultado = valor_anualidad_con_futuro_anticipada(F, tasa_calc, int(n_calc))
+                    st.success(f"Anualidad Anticipada (A): ${resultado:,.2f}")
+
+            elif operacion_anticipada == "Tiempo (n) desde Futuro":
+                F = st.number_input("Valor Futuro (F)", value=15000.0, step=1000.0, key="ant_tf_F")
+                A = st.number_input("Valor de la anualidad (A)", value=1000.0, step=100.0, key="ant_tf_A")
+                datos_tasa = ingresar_tasa("ant_tf_tasa")
+                periodicidad_res = st.selectbox("Periodicidad de cálculo", OPCIONES_PERIODICIDAD, key="ant_tf_per")
+
+                if st.button("Calcular Tiempo (n) Anticipado", key="btn_ant_tf"):
+                    tasa_calc = calcular_tasa_resultado(datos_tasa, periodicidad_res)
+                    validar_calculo_tiempo_futuro(A, tasa_calc)
+
+                    resultado = valor_tiempo_anualidad_anticipada_con_futuro(F, tasa_calc, A)
+                    st.success(f"Número de períodos (n): {resultado:.4f}")
+
+        # -------------------------------------------------
+        # ANUALIDADES PERPETUAS
+        # -------------------------------------------------
+        elif sub_anualidad == "Anualidades Perpetuas":
+            A = st.number_input("Valor de la anualidad (A)", value=1000.0, step=100.0, key="perp_A")
+            datos_tasa = ingresar_tasa("perp_tasa")
+            periodicidad_res = st.selectbox("Periodicidad de cálculo", OPCIONES_PERIODICIDAD, key="perp_per")
+
+            if st.button("Calcular Anualidad Perpetua", key="btn_perp"):
+                tasa_calc = calcular_tasa_resultado(datos_tasa, periodicidad_res)
+                validar_tasa(tasa_calc)
+
+                resultado = anualidad_perpetua(A, tasa_calc)
+                st.success(f"Valor Presente Perpetuo (P): ${resultado:,.2f}")
 
     except (
             ValidacionError,

@@ -23,7 +23,7 @@ def obtener_periodos_anuales(periodicidad: str) -> int:
 
 
 # ---------------------------------------------------------
-# 1. TASA PERIODICA Y TASA NOMINAL
+# 1. TASA PERIÓDICA Y TASA NOMINAL
 # ---------------------------------------------------------
 
 def periodica_nominal(i_p: float, m: int) -> float:
