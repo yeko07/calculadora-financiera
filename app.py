@@ -80,7 +80,7 @@ OPCIONES_PERIODICIDAD = list(PERIODOS_ANUALES.keys())
 
 
 def ingresar_tasa(key):
-    """Permite ingresar una tasa efectiva anual, nominal o indexada."""
+    """Permite ingresar una tasa efectiva anual, nominal, periódica o indexada."""
 
     es_indexada = (
             st.radio(
@@ -123,7 +123,7 @@ def ingresar_tasa(key):
         }
 
     tipo_tasa = st.selectbox(
-        "Tipo de tasa", ["Efectiva anual", "Nominal"], key=f"{key}_tipo_tasa"
+        "Tipo de tasa", ["Efectiva anual", "Nominal", "Periódica"], key=f"{key}_tipo_tasa"
     )
 
     tasa = st.number_input(
@@ -136,7 +136,7 @@ def ingresar_tasa(key):
 
         st.caption("La tasa efectiva se interpreta como efectiva anual.")
 
-    else:
+    elif tipo_tasa == "Nominal":
         periodicidad_tasa = st.selectbox(
             "Periodicidad de capitalización de la tasa nominal",
             OPCIONES_PERIODICIDAD,
@@ -146,6 +146,20 @@ def ingresar_tasa(key):
 
         modalidad = st.selectbox(
             "Modalidad de la tasa nominal",
+            ["Vencida", "Anticipada"],
+            key=f"{key}_modalidad",
+        )
+
+    else:  # Tasa Periódica
+        periodicidad_tasa = st.selectbox(
+            "Periodicidad de la tasa periódica",
+            OPCIONES_PERIODICIDAD,
+            index=OPCIONES_PERIODICIDAD.index("Mensual") if "Mensual" in OPCIONES_PERIODICIDAD else 0,
+            key=f"{key}_periodicidad_tasa",
+        )
+
+        modalidad = st.selectbox(
+            "Modalidad de la tasa periódica",
             ["Vencida", "Anticipada"],
             key=f"{key}_modalidad",
         )
@@ -204,12 +218,12 @@ def ingresar_tiempo(key):
     return n, periodicidad
 
 
-def calcular_tiempo_resultado(n, periodicidad_tiempo, periodicidad_resultado):
+def calcular_tiempo_resultado(n, p_tiempo, periodicidad_resultado):
     """Valida y convierte el tiempo a la periodicidad de cálculo."""
 
-    validar_convertir_tiempo(n, periodicidad_tiempo, periodicidad_resultado)
+    validar_convertir_tiempo(n, p_tiempo, periodicidad_resultado)
 
-    return convertir_tiempo(n, periodicidad_tiempo, periodicidad_resultado)
+    return convertir_tiempo(n, p_tiempo, periodicidad_resultado)
 
 
 def mostrar_error(error):
@@ -438,7 +452,7 @@ with tab_conversiones:
 
     tipo_conversion = st.selectbox(
         "Selecciona el tipo de conversión",
-        ["Convertir tasa", "Convertir tiempo", "Convertir modalidad periódica"],
+        ["Convertir tasa", "Convertir tiempo"],
         key="tipo_conversion",
     )
 
@@ -454,18 +468,78 @@ with tab_conversiones:
 
             datos_tasa_conversion = ingresar_tasa("conversion")
 
-            periodicidad_resultado = st.selectbox(
-                "Periodicidad de la tasa de resultado",
-                OPCIONES_PERIODICIDAD,
-                index=OPCIONES_PERIODICIDAD.index("Mensual") if "Mensual" in OPCIONES_PERIODICIDAD else 0,
-                key="conversion_periodicidad_resultado",
+            tipo_tasa_resultado = st.selectbox(
+                "Tipo de tasa de resultado",
+                ["Periódica", "Efectiva anual", "Nominal"],
+                key="conversion_tipo_tasa_resultado",
             )
+
+            # Inicializamos variables para evitar conflictos
+            modalidad_resultado = "Vencida"
+
+            if tipo_tasa_resultado == "Efectiva anual":
+                periodicidad_resultado = "Anual"
+                modalidad_resultado = "Vencida"
+                st.caption("La tasa calculada se expresará como Efectiva Anual.")
+
+            elif tipo_tasa_resultado == "Nominal":
+                periodicidad_resultado = st.selectbox(
+                    "Periodicidad de capitalización del resultado",
+                    OPCIONES_PERIODICIDAD,
+                    index=OPCIONES_PERIODICIDAD.index("Mensual") if "Mensual" in OPCIONES_PERIODICIDAD else 0,
+                    key="conversion_periodicidad_res_nominal",
+                )
+                modalidad_resultado = st.selectbox(
+                    "Modalidad del resultado",
+                    ["Vencida", "Anticipada"],
+                    key="conversion_modalidad_res_nominal",
+                )
+
+            else:  # Periódica
+                periodicidad_resultado = st.selectbox(
+                    "Periodicidad de la tasa de resultado",
+                    OPCIONES_PERIODICIDAD,
+                    index=OPCIONES_PERIODICIDAD.index("Mensual") if "Mensual" in OPCIONES_PERIODICIDAD else 0,
+                    key="conversion_periodicidad_resultado",
+                )
+                modalidad_resultado = st.selectbox(
+                    "Modalidad del resultado",
+                    ["Vencida", "Anticipada"],
+                    key="conversion_modalidad_res_periodica",
+                )
 
             if st.button("Convertir tasa", key="btn_conversion_tasa"):
 
-                resultado = calcular_tasa_resultado(datos_tasa_conversion, periodicidad_resultado)
+                # 1. Obtenemos primero la tasa periódica vencida del backend
+                res_periodica_vencida = calcular_tasa_resultado(
+                    datos_tasa_conversion, periodicidad_resultado
+                )
 
-                st.success(f"Tasa periódica vencida: {resultado:.6f} %")
+                # 2. Adaptamos la presentación del resultado según la opción seleccionada
+                m_res = PERIODOS_ANUALES[periodicidad_resultado]
+
+                if tipo_tasa_resultado == "Efectiva anual":
+                    resultado_final = res_periodica_vencida
+                    etiqueta = "Tasa efectiva anual"
+
+                elif tipo_tasa_resultado == "Nominal":
+                    if modalidad_resultado == "Anticipada":
+                        res_per = vencida_anticipada(res_periodica_vencida)
+                    else:
+                        res_per = res_periodica_vencida
+
+                    resultado_final = res_per * m_res
+                    etiqueta = f"Tasa nominal {periodicidad_resultado.lower()} {modalidad_resultado.lower()}"
+
+                else:  # Periódica
+                    if modalidad_resultado == "Anticipada":
+                        resultado_final = vencida_anticipada(res_periodica_vencida)
+                    else:
+                        resultado_final = res_periodica_vencida
+
+                    etiqueta = f"Tasa periódica {periodicidad_resultado.lower()} {modalidad_resultado.lower()}"
+
+                st.success(f"{etiqueta}: {resultado_final:.6f} %")
 
         # -------------------------------------------------
         # CONVERTIR TIEMPO
@@ -492,48 +566,6 @@ with tab_conversiones:
                     f"Resultado: {resultado:.6f} períodos"
                     f" {periodicidad_resultado.lower()}."
                 )
-
-        # -------------------------------------------------
-        # CONVERTIR MODALIDAD PERIÓDICA
-        # -------------------------------------------------
-
-        elif tipo_conversion == "Convertir modalidad periódica":
-
-            st.info(
-                "Esta operación recibe una tasa periódica, no una tasa efectiva"
-                " anual. Si partes de una efectiva anual, conviértela primero a"
-                " periódica en la opción 'Convertir tasa'."
-            )
-
-            tasa_periodica = st.number_input(
-                "Tasa periódica (%)",
-                min_value=0.0,
-                value=2.0,
-                step=0.1,
-                key="modalidad_tasa",
-            )
-
-            modalidad_origen = st.selectbox(
-                "Modalidad de origen", ["Anticipada", "Vencida"], key="modalidad_origen"
-            )
-
-            if st.button("Convertir modalidad", key="btn_conversion_modalidad"):
-
-                if modalidad_origen == "Anticipada":
-
-                    validar_anticipada_vencida(tasa_periodica)
-
-                    resultado = anticipada_vencida(tasa_periodica)
-
-                    st.success(f"Tasa periódica vencida: {resultado:.6f} %")
-
-                else:
-
-                    validar_vencida_anticipada(tasa_periodica)
-
-                    resultado = vencida_anticipada(tasa_periodica)
-
-                    st.success(f"Tasa periódica anticipada: {resultado:.6f} %")
 
     except (
             ValidacionError,
@@ -759,8 +791,6 @@ with tab_anualidades:
 
                 if st.button("Calcular Tiempo (n) Anticipado", key="btn_ant_tf"):
                     tasa_calc = calcular_tasa_resultado(datos_tasa, periodicidad_res)
-                    validar_calculo_tiempo_futuro(A, tasa_calc)
-
                     resultado = valor_tiempo_anualidad_anticipada_con_futuro(F, tasa_calc, A)
                     st.success(f"Número de períodos (n): {resultado:.4f}")
 
@@ -768,16 +798,15 @@ with tab_anualidades:
         # ANUALIDADES PERPETUAS
         # -------------------------------------------------
         elif sub_anualidad == "Anualidades Perpetuas":
-            A = st.number_input("Valor de la anualidad (A)", value=1000.0, step=100.0, key="perp_A")
-            datos_tasa = ingresar_tasa("perp_tasa")
-            periodicidad_res = st.selectbox("Periodicidad de cálculo", OPCIONES_PERIODICIDAD, key="perp_per")
+            st.info("Cálculos para anualidades perpetuas.")
+            A_perp = st.number_input("Valor de la anualidad perpetua (A)", value=1000.0, step=100.0, key="perp_A")
+            datos_tasa_perp = ingresar_tasa("perp_tasa")
+            periodicidad_res_perp = st.selectbox("Periodicidad de cálculo", OPCIONES_PERIODICIDAD, key="perp_per")
 
-            if st.button("Calcular Anualidad Perpetua", key="btn_perp"):
-                tasa_calc = calcular_tasa_resultado(datos_tasa, periodicidad_res)
-                validar_tasa(tasa_calc)
-
-                resultado = anualidad_perpetua(A, tasa_calc)
-                st.success(f"Valor Presente Perpetuo (P): ${resultado:,.2f}")
+            if st.button("Calcular Valor Presente Perpetuo", key="btn_perp"):
+                tasa_calc_perp = calcular_tasa_resultado(datos_tasa_perp, periodicidad_res_perp)
+                resultado_perp = anualidad_perpetua(A_perp, tasa_calc_perp)
+                st.success(f"Valor Presente Perpetuo (P): ${resultado_perp:,.2f}")
 
     except (
             ValidacionError,

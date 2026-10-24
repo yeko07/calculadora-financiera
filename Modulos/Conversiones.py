@@ -1,4 +1,5 @@
 
+
 # ---------------------------------------------------------
 # MODULOS/Conversiones.py
 # ---------------------------------------------------------
@@ -54,7 +55,7 @@ def efectiva_nominal(i_ea: float, m: int) -> float:
 
 
 # ---------------------------------------------------------
-# 3. TASA EFECTIVA ANUAL Y TASA PERIODICA
+# 3. TASA EFECTIVA ANUAL Y TASA PERIÓDICA
 # ---------------------------------------------------------
 
 def efectiva_periodica(i_ea: float, m: int) -> float:
@@ -126,52 +127,54 @@ def combinar_tasa_indexada(
         i2: float
 ) -> float:
     """Combina los componentes de una tasa indexada."""
-    if tipo_indexado == "IBR + DTF":
+    if tipo_indexado == "IBR o DTF":
         return dtf_ibr(i1, i2)
 
-    if tipo_indexado == "IPC + UVR":
+    if tipo_indexado == "IPC o UVR":
         return ipc_uvr(i1, i2)
 
     raise ValueError("Tipo de tasa indexada no reconocido.")
 
 
 # ---------------------------------------------------------
-# 6. CONVERTIR UNA TASA A EFECTIVA ANUAL
+# 6. CONVERTIR CUALQUIER TASA A EFECTIVA ANUAL
 # ---------------------------------------------------------
-
 def tasa_a_efectiva_anual(
         tasa: float,
         tipo_tasa: str,
         periodicidad_tasa: str,
         modalidad: str = "Vencida"
 ) -> float:
-    """
-    Convierte una tasa a efectiva anual.
+    """Convierte cualquier tasa a Efectiva Anual (siempre vencida)."""
 
-    - Efectiva anual: se devuelve sin modificar.
-    - Nominal vencida: se divide entre la frecuencia y se capitaliza.
-    - Nominal anticipada: se obtiene primero la tasa periódica
-      anticipada, se convierte a periódica vencida y se capitaliza.
-    """
     if tipo_tasa == "Efectiva anual":
         return tasa
 
     m = obtener_periodos_anuales(periodicidad_tasa)
 
-    # La tasa nominal anual se convierte primero en tasa periódica.
-    tasa_periodica = tasa / m
+    if tipo_tasa == "Nominal":
+        if modalidad == "Anticipada":
+            # 1. Nominal anticipada / m = Periódica anticipada
+            tasa_p_anticipada = tasa / m
+            # 2. De periódica anticipada a periódica vencida
+            tasa_p_vencida = anticipada_vencida(tasa_p_anticipada)
+            # 3. De periódica vencida a efectiva anual
+            return periodica_efectiva(tasa_p_vencida, m)
+        else:
+            return nominal_efectiva(tasa, m)
 
-    if modalidad == "Anticipada":
-        # Primero se convierte la tasa periódica anticipada
-        # en tasa periódica vencida.
-        tasa_periodica = anticipada_vencida(tasa_periodica)
+    elif tipo_tasa == "Periódica":
+        tasa_p = tasa
+        if modalidad == "Anticipada":
+            tasa_p = anticipada_vencida(tasa_p)
 
-    # La tasa utilizada para capitalizar ya es periódica vencida.
-    return periodica_efectiva(tasa_periodica, m)
+        return periodica_efectiva(tasa_p, m)
+
+    return tasa
 
 
 # ---------------------------------------------------------
-# 7. CONVERTIR UNA TASA A OTRA PERIODICIDAD
+# 7. CONVERTIR CUALQUIER TASA A TASA PERIÓDICA
 # ---------------------------------------------------------
 
 def convertir_tasa(
@@ -198,9 +201,34 @@ def convertir_tasa(
 
     return efectiva_periodica(tasa_ea, m_resultado)
 
+# ------------------------------------------------------------------------
+# 8. CONVERTIR CUALQUIER TASA A NOMINAL
+# ------------------------------------------------------------------------
+
+def convertir_a_nominal(
+        tasa : float,
+        tipo_tasa : str,
+        periodicidad_tasa : str,
+        periodicidad_resultado : str,
+        modalidad: str = "Vencida"
+) -> float:
+
+    i_p = convertir_tasa(
+        tasa,
+        tipo_tasa,
+        periodicidad_tasa,
+        periodicidad_resultado,
+        modalidad
+    )
+
+    m_resultado = obtener_periodos_anuales(periodicidad_resultado)
+
+    return periodica_nominal(i_p, m_resultado)
+
+
 
 # ---------------------------------------------------------
-# 8. CONVERTIR PERIODOS DE TIEMPO
+# 9. CONVERTIR PERIODOS DE TIEMPO
 # ---------------------------------------------------------
 
 def convertir_tiempo(
@@ -216,7 +244,7 @@ def convertir_tiempo(
 
 
 # ---------------------------------------------------------
-# 9. PROCESAR TASAS NORMALES O INDEXADAS
+# 10. PROCESAR TASAS NORMALES O INDEXADAS
 # ---------------------------------------------------------
 
 def procesar_tasa(

@@ -106,10 +106,10 @@ def validar_tasa_indexada(tipo_indexado, i1, i2):
     if tipo_indexado is None:
         raise ValidacionError("Debes seleccionar un tipo de tasa indexada válido.")
 
-    if tipo_indexado == "IBR + DTF":
+    if tipo_indexado == "IBR o DTF":
         validar_dtf_ibr(i1, i2)
 
-    elif tipo_indexado == "IPC + UVR":
+    elif tipo_indexado == "IPC o UVR":
         validar_ipc_uvr(i1, i2)
 
     else:
@@ -149,9 +149,9 @@ def validar_procesar_tasa(
 
     validar_tasa_no_negativa(tasa)
 
-    if tipo_tasa not in ["Efectiva anual", "Nominal"]:
+    if tipo_tasa not in ["Efectiva anual", "Nominal", "Periódica"]:
         raise ValidacionError(
-            "El tipo de tasa debe ser 'Efectiva anual' o 'Nominal'."
+            "El tipo de tasa debe ser 'Efectiva anual', 'Nominal' o 'Periódica'."
         )
 
     if tipo_tasa == "Nominal":
