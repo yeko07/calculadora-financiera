@@ -17,8 +17,8 @@ from Modulos.Conversiones import (
     PERIODOS_ANUALES,
     procesar_tasa,
     convertir_tiempo,
-    anticipada_vencida,
-    vencida_anticipada,
+    convertir_tasa,
+    convertir_a_nominal,
 )
 
 from Modulos.Anualidades import (
@@ -47,13 +47,10 @@ from Validaciones.Validacion_interes_compuesto import (
 from Validaciones.Validacion_conversiones import (
     validar_procesar_tasa,
     validar_convertir_tiempo,
-    validar_anticipada_vencida,
-    validar_vencida_anticipada,
 )
 
 from Validaciones.Validacion_anualidades import (
     validar_tasa_y_periodos,
-    validar_tasa,
     validar_calculo_tiempo_presente_vencida,
     validar_calculo_tiempo_presente_anticipada,
     validar_calculo_tiempo_futuro,
@@ -70,7 +67,6 @@ st.set_page_config(
 
 st.title("Calculadora financiera")
 
-# Usamos directamente las claves del backend (incluye 'Anual')
 OPCIONES_PERIODICIDAD = list(PERIODOS_ANUALES.keys())
 
 
@@ -133,7 +129,6 @@ def ingresar_tasa(key):
     if tipo_tasa == "Efectiva anual":
         periodicidad_tasa = "Anual"
         modalidad = "Vencida"
-
         st.caption("La tasa efectiva se interpreta como efectiva anual.")
 
     elif tipo_tasa == "Nominal":
@@ -259,10 +254,6 @@ with tab_interes:
 
     try:
 
-        # -------------------------------------------------
-        # VALOR FUTURO
-        # -------------------------------------------------
-
         if operacion == "Valor futuro":
 
             datos_tasa = ingresar_tasa("futuro")
@@ -300,10 +291,6 @@ with tab_interes:
                 st.write(f"Tasa periódica vencida utilizada: {tasa_calculada:.6f} %")
                 st.write(f"Número de períodos utilizados: {n_resultado:.6f}")
 
-        # -------------------------------------------------
-        # VALOR PRESENTE
-        # -------------------------------------------------
-
         elif operacion == "Valor presente":
 
             datos_tasa = ingresar_tasa("presente")
@@ -340,10 +327,6 @@ with tab_interes:
                 st.success(f"Valor presente: ${resultado:,.2f}")
                 st.write(f"Tasa periódica vencida utilizada: {tasa_calculada:.6f} %")
                 st.write(f"Número de períodos utilizados: {n_resultado:.6f}")
-
-        # -------------------------------------------------
-        # TASA DE INTERÉS
-        # -------------------------------------------------
 
         elif operacion == "Tasa de interés":
 
@@ -388,10 +371,6 @@ with tab_interes:
                     " es una tasa efectiva anual."
                 )
 
-        # -------------------------------------------------
-        # NÚMERO DE PERÍODOS
-        # -------------------------------------------------
-
         elif operacion == "Número de períodos":
 
             datos_tasa = ingresar_tasa("periodos")
@@ -429,8 +408,7 @@ with tab_interes:
 
                 st.success(f"Número de períodos: {resultado:.6f}")
                 st.caption(
-                    f"El resultado está expresado en períodos"
-                    f" {periodicidad_resultado.lower()}."
+                    f"El resultado está expresado en períodos {periodicidad_resultado.lower()}."
                 )
 
     except (
@@ -460,10 +438,6 @@ with tab_conversiones:
 
     try:
 
-        # -------------------------------------------------
-        # CONVERTIR TASA
-        # -------------------------------------------------
-
         if tipo_conversion == "Convertir tasa":
 
             datos_tasa_conversion = ingresar_tasa("conversion")
@@ -474,7 +448,6 @@ with tab_conversiones:
                 key="conversion_tipo_tasa_resultado",
             )
 
-            # Inicializamos variables para evitar conflictos
             modalidad_resultado = "Vencida"
 
             if tipo_tasa_resultado == "Efectiva anual":
@@ -510,40 +483,73 @@ with tab_conversiones:
 
             if st.button("Convertir tasa", key="btn_conversion_tasa"):
 
-                # 1. Obtenemos primero la tasa periódica vencida del backend
-                res_periodica_vencida = calcular_tasa_resultado(
-                    datos_tasa_conversion, periodicidad_resultado
-                )
+                # Extraemos parámetros de entrada para reutilizar el backend unificado
+                tasa_val = datos_tasa_conversion["tasa"]
+                tipo_tasa_val = datos_tasa_conversion["tipo_tasa"]
+                periodicidad_tasa_val = datos_tasa_conversion["periodicidad_tasa"]
+                modalidad_val = datos_tasa_conversion["modalidad"]
+                es_ind = datos_tasa_conversion["es_indexada"]
+                tipo_ind = datos_tasa_conversion["tipo_indexado"]
+                tasa2_val = datos_tasa_conversion["tasa2"]
 
-                # 2. Adaptamos la presentación del resultado según la opción seleccionada
-                m_res = PERIODOS_ANUALES[periodicidad_resultado]
-
-                if tipo_tasa_resultado == "Efectiva anual":
-                    resultado_final = res_periodica_vencida
-                    etiqueta = "Tasa efectiva anual"
-
-                elif tipo_tasa_resultado == "Nominal":
-                    if modalidad_resultado == "Anticipada":
-                        res_per = vencida_anticipada(res_periodica_vencida)
-                    else:
-                        res_per = res_periodica_vencida
-
-                    resultado_final = res_per * m_res
-                    etiqueta = f"Tasa nominal {periodicidad_resultado.lower()} {modalidad_resultado.lower()}"
-
-                else:  # Periódica
-                    if modalidad_resultado == "Anticipada":
-                        resultado_final = vencida_anticipada(res_periodica_vencida)
+                # Si es indexada, procesamos primero el valor base combinado
+                if es_ind:
+                    # Usamos la lógica de procesar_tasa o combinada del backend si aplica
+                    res_periodica_vencida = calcular_tasa_resultado(
+                        datos_tasa_conversion, periodicidad_resultado
+                    )
+                    if tipo_tasa_resultado == "Efectiva anual":
+                        resultado_final = res_periodica_vencida # (Ya calculada como EA en procesar si fuera el caso, pero con convertir_tasa manejamos el flujo)
+                    elif tipo_tasa_resultado == "Nominal":
+                        resultado_final = convertir_a_nominal(
+                            tasa=res_periodica_vencida,
+                            tipo_tasa="Periódica",
+                            periodicidad_tasa=periodicidad_resultado,
+                            periodicidad_resultado=periodicidad_resultado,
+                            modalidad="Vencida",
+                            modalidad_resultado=modalidad_resultado
+                        )
                     else:
                         resultado_final = res_periodica_vencida
+                        if modalidad_resultado == "Anticipada":
+                            from Modulos.Conversiones import vencida_anticipada
+                            resultado_final = vencida_anticipada(resultado_final)
+                else:
+                    # Flujo estándar optimizado con el backend
+                    if tipo_tasa_resultado == "Efectiva anual":
+                        from Modulos.Conversiones import tasa_a_efectiva_anual
+                        resultado_final = tasa_a_efectiva_anual(
+                            tasa=tasa_val,
+                            tipo_tasa=tipo_tasa_val,
+                            periodicidad_tasa=periodicidad_tasa_val,
+                            modalidad=modalidad_val
+                        )
+                    elif tipo_tasa_resultado == "Nominal":
+                        resultado_final = convertir_a_nominal(
+                            tasa=tasa_val,
+                            tipo_tasa=tipo_tasa_val,
+                            periodicidad_tasa=periodicidad_tasa_val,
+                            periodicidad_resultado=periodicidad_resultado,
+                            modalidad=modalidad_val,
+                            modalidad_resultado=modalidad_resultado
+                        )
+                    else:  # Periódica
+                        resultado_final = convertir_tasa(
+                            tasa=tasa_val,
+                            tipo_tasa=tipo_tasa_val,
+                            periodicidad_tasa=periodicidad_tasa_val,
+                            periodicidad_resultado=periodicidad_resultado,
+                            modalidad=modalidad_val
+                        )
+                        if modalidad_resultado == "Anticipada":
+                            from Modulos.Conversiones import vencida_anticipada
+                            resultado_final = vencida_anticipada(resultado_final)
 
-                    etiqueta = f"Tasa periódica {periodicidad_resultado.lower()} {modalidad_resultado.lower()}"
+                etiqueta = f"Tasa {tipo_tasa_resultado.lower()} {periodicidad_resultado.lower()} {modalidad_resultado.lower()}"
+                if tipo_tasa_resultado == "Efectiva anual":
+                    etiqueta = "Tasa efectiva anual"
 
                 st.success(f"{etiqueta}: {resultado_final:.6f} %")
-
-        # -------------------------------------------------
-        # CONVERTIR TIEMPO
-        # -------------------------------------------------
 
         elif tipo_conversion == "Convertir tiempo":
 
@@ -563,8 +569,7 @@ with tab_conversiones:
                 )
 
                 st.success(
-                    f"Resultado: {resultado:.6f} períodos"
-                    f" {periodicidad_resultado.lower()}."
+                    f"Resultado: {resultado:.6f} períodos {periodicidad_resultado.lower()}."
                 )
 
     except (
@@ -597,10 +602,6 @@ with tab_anualidades:
     st.divider()
 
     try:
-
-        # -------------------------------------------------
-        # ANUALIDADES VENCIDAS
-        # -------------------------------------------------
         if sub_anualidad == "Anualidades Vencidas":
             operacion_vencida = st.selectbox(
                 "Selecciona la operación (Vencidas)",
@@ -697,9 +698,6 @@ with tab_anualidades:
                     resultado = valor_tiempo_anualidad_vencida_con_futuro(F, tasa_calc, A)
                     st.success(f"Número de períodos (n): {resultado:.4f}")
 
-        # -------------------------------------------------
-        # ANUALIDADES ANTICIPADAS
-        # -------------------------------------------------
         elif sub_anualidad == "Anualidades Anticipadas":
             operacion_anticipada = st.selectbox(
                 "Selecciona la operación (Anticipadas)",
@@ -794,17 +792,14 @@ with tab_anualidades:
                     resultado = valor_tiempo_anualidad_anticipada_con_futuro(F, tasa_calc, A)
                     st.success(f"Número de períodos (n): {resultado:.4f}")
 
-        # -------------------------------------------------
-        # ANUALIDADES PERPETUAS
-        # -------------------------------------------------
         elif sub_anualidad == "Anualidades Perpetuas":
             st.info("Cálculos para anualidades perpetuas.")
             A_perp = st.number_input("Valor de la anualidad perpetua (A)", value=1000.0, step=100.0, key="perp_A")
             datos_tasa_perp = ingresar_tasa("perp_tasa")
-            periodicidad_res_perp = st.selectbox("Periodicidad de cálculo", OPCIONES_PERIODICIDAD, key="perp_per")
+            periodicidad_perp = st.selectbox("Periodicidad de cálculo", OPCIONES_PERIODICIDAD, key="perp_per")
 
             if st.button("Calcular Valor Presente Perpetuo", key="btn_perp"):
-                tasa_calc_perp = calcular_tasa_resultado(datos_tasa_perp, periodicidad_res_perp)
+                tasa_calc_perp = calcular_tasa_resultado(datos_tasa_perp, periodicidad_perp)
                 resultado_perp = anualidad_perpetua(A_perp, tasa_calc_perp)
                 st.success(f"Valor Presente Perpetuo (P): ${resultado_perp:,.2f}")
 
