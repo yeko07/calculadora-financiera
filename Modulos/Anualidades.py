@@ -1,105 +1,122 @@
+# ---------------------------------------------------------
+# MODULOS/Anualidades.py
+# Anualidades vencidas, anticipadas y perpetuas.
+# Convenciones: i en porcentaje por período (5 = 5 %), n entero de períodos,
+# A = cuota, P = valor presente, F = valor futuro. Las validaciones están en
+# Validaciones/Validacion_anualidades.py. i = 0 no se admite (las fórmulas
+# dividen entre i).
+#
+# Se usan log1p/expm1 para mantener la precisión con tasas muy pequeñas:
+#   (1+i)^n - 1  =  expm1(n · log1p(i))
+#   1 - (1+i)^-n = -expm1(-n · log1p(i))
+# ---------------------------------------------------------
+
 import math
 
-# ====================================================================================================
-# MÓDULOS ANUALIDADES
-# =====================================================================================================
+
+# ---------------------------------------------------------
+# FACTORES AUXILIARES (uso interno)
+# ---------------------------------------------------------
+
+def _factor_valor_presente(i_dec: float, n: float) -> float:
+    """a_n = [1 - (1+i)^-n] / i : valor presente de 1 por período, vencida."""
+    return -math.expm1(-n * math.log1p(i_dec)) / i_dec
 
 
-# -----------------------------------------------------------------------------------------------------
+def _factor_valor_futuro(i_dec: float, n: float) -> float:
+    """s_n = [(1+i)^n - 1] / i : valor futuro de 1 por período, vencida."""
+    return math.expm1(n * math.log1p(i_dec)) / i_dec
+
+
+# ---------------------------------------------------------
 # 1. ANUALIDADES PRESENTES VENCIDAS
-# ----------------------------------------------------------------------------------------------------
+# ---------------------------------------------------------
 
 def valor_presente_anualidad_vencida(A: float, i: float, n: int) -> float:
-    """Calcula el valor presente de una anualidad vencida"""
-    i_dec = i / 100
-    return A * (((1 + i_dec)**n - 1) / (i_dec * (1 + i_dec)**n))
+    """P = A · a_n (cuotas al final de cada período)."""
+    return A * _factor_valor_presente(i / 100, n)
 
 
 def valor_anualidad_con_presente_vencida(P: float, i: float, n: int) -> float:
-    """Calcula el valor de la anualidad vencida con el valor presente"""
-    i_dec = i / 100
-    return P * ((i_dec * (1 + i_dec)**n) / ((1 + i_dec)**n - 1))
+    """A = P / a_n: cuota que amortiza un presente P en n períodos."""
+    return P / _factor_valor_presente(i / 100, n)
 
 
 def valor_tiempo_anualidad_vencida_con_presente(P: float, i: float, A: float) -> float:
-    """Calcula el valor del tiempo de la anualidad vencida con el valor presente"""
+    """n = -ln(1 - P·i/A) / ln(1+i): períodos para amortizar P con cuota A."""
     i_dec = i / 100
-    return (-math.log(1 - ((P * i_dec) / A))) / math.log(1 + i_dec)
+    # log1p(-x) = ln(1 - x) con buena precisión.
+    return -math.log1p(-(P * i_dec) / A) / math.log1p(i_dec)
 
 
-# ------------------------------------------------------------------------------------------------------
+# ---------------------------------------------------------
 # 2. ANUALIDADES FUTURAS VENCIDAS
-# ------------------------------------------------------------------------------------------------------
+# ---------------------------------------------------------
 
 def valor_futuro_anualidad_vencida(A: float, i: float, n: int) -> float:
-    """Calcula el valor futuro de la anualidad vencida"""
-    i_dec = i / 100
-    return A * (((1 + i_dec)**n - 1) / i_dec)
+    """F = A · s_n (cuotas al final de cada período)."""
+    return A * _factor_valor_futuro(i / 100, n)
 
 
 def valor_anualidad_con_futuro_vencida(F: float, i: float, n: int) -> float:
-    """Calcula el valor de la anualidad vencida con el valor futuro"""
-    i_dec = i / 100
-    return F * (i_dec / ((1 + i_dec)**n - 1))
+    """A = F / s_n: cuota necesaria para acumular F en n períodos."""
+    return F / _factor_valor_futuro(i / 100, n)
 
 
 def valor_tiempo_anualidad_vencida_con_futuro(F: float, i: float, A: float) -> float:
-    """Calcula el valor del tiempo de la anualidad vencida con el valor futuro"""
+    """n = ln(1 + F·i/A) / ln(1+i): períodos para acumular F con cuota A."""
     i_dec = i / 100
-    return math.log(((F * i_dec) / A) + 1) / math.log(1 + i_dec)
+    return math.log1p((F * i_dec) / A) / math.log1p(i_dec)
 
 
-# -------------------------------------------------------------------------------------------------------
+# ---------------------------------------------------------
 # 3. ANUALIDADES ANTICIPADAS PRESENTES
-# -------------------------------------------------------------------------------------------------------
+# ---------------------------------------------------------
 
 def valor_presente_anualidad_anticipada(A: float, i: float, n: int) -> float:
-    """Calcula el valor presente de una anualidad anticipada"""
+    """P = A · (1+i) · a_n  (equivale a A + A·a_{n-1}: primera cuota en t = 0)."""
     i_dec = i / 100
-    # CORREGIDO: Se agregó el operador * antes del paréntesis
-    return A + A * (((1 + i_dec)**(n - 1) - 1) / (i_dec * (1 + i_dec)**(n - 1)))
+    return A * (1 + i_dec) * _factor_valor_presente(i_dec, n)
 
 
 def valor_anualidad_con_presente_anticipada(P: float, i: float, n: int) -> float:
-    """Calcula el valor de la anualidad anticipada con el valor presente"""
+    """A = P / [(1+i) · a_n]: cuota anticipada que amortiza P en n períodos."""
     i_dec = i / 100
-    return P / (1 + (((1 + i_dec)**(n - 1) - 1) / (i_dec * (1 + i_dec)**(n - 1))))
+    return P / ((1 + i_dec) * _factor_valor_presente(i_dec, n))
 
 
 def valor_tiempo_anualidad_anticipada_con_presente(P: float, i: float, A: float) -> float:
-    """Calcula el valor del tiempo de la anualidad anticipada con el valor presente"""
+    """n = -ln(1 - P·i / [A(1+i)]) / ln(1+i)."""
     i_dec = i / 100
-    return (-math.log(1 - ((P * i_dec) / (A * (1 + i_dec))))) / math.log(1 + i_dec)
+    return -math.log1p(-(P * i_dec) / (A * (1 + i_dec))) / math.log1p(i_dec)
 
 
-# -------------------------------------------------------------------------------------------------------
+# ---------------------------------------------------------
 # 4. ANUALIDADES ANTICIPADAS FUTURAS
-# -------------------------------------------------------------------------------------------------------
+# ---------------------------------------------------------
 
 def valor_futuro_anualidad_anticipada(A: float, i: float, n: int) -> float:
-    """Calcula el valor futuro de una anualidad anticipada"""
+    """F = A · (1+i) · s_n  (equivale a A·[(1+i)^(n+1) - (1+i)] / i)."""
     i_dec = i / 100
-    return A * (((1 + i_dec)**(n + 1) - (1 + i_dec)) / i_dec)
+    return A * (1 + i_dec) * _factor_valor_futuro(i_dec, n)
 
 
 def valor_anualidad_con_futuro_anticipada(F: float, i: float, n: int) -> float:
-    """Calcula el valor de la anualidad anticipada con el valor futuro"""
+    """A = F / [(1+i) · s_n]: cuota anticipada necesaria para acumular F."""
     i_dec = i / 100
-    denominador = ((1 + i_dec)**(n + 1) - (1 + i_dec)) / i_dec
-    return F / denominador
+    return F / ((1 + i_dec) * _factor_valor_futuro(i_dec, n))
 
 
 def valor_tiempo_anualidad_anticipada_con_futuro(F: float, i: float, A: float) -> float:
-    """Calcula el valor del tiempo de la anualidad anticipada con el valor futuro"""
+    """n = ln(1 + F·i / [A(1+i)]) / ln(1+i)."""
     i_dec = i / 100
-    return math.log(((F * i_dec) / (A * (1 + i_dec))) + 1) / math.log(1 + i_dec)
+    return math.log1p((F * i_dec) / (A * (1 + i_dec))) / math.log1p(i_dec)
 
 
-# ----------------------------------------------------------------------------------------------------------
+# ---------------------------------------------------------
 # 5. ANUALIDADES PERPETUAS
-# ----------------------------------------------------------------------------------------------------------
+# ---------------------------------------------------------
 
 def anualidad_perpetua(A: float, i: float) -> float:
-    """Calcula el valor presente de una anualidad perpetua"""
-    i_dec = i / 100
-    return A / i_dec
+    """Valor presente de una perpetuidad vencida: P = A / i."""
+    return A / (i / 100)
